@@ -9,7 +9,6 @@ Members are:
 - States
     - A state is the screen image s \in S.
     - It also has actions of each player: A_1, A_2
-    - Discount factor gamma
 
 - Public methods
     - observation function O(s,i) which returns a the portion of screen visible by a player (same size for any i)
@@ -37,7 +36,6 @@ class gathering_game():
     - s : ndarray representing the image, the current state of the screen
     - dir : vector with directions of view of player 0,1. one of 0,1,2,3 = up,down,left,right
     - pars:
-        - discount factor gamma
         - N_apples = number of frames after which apple respawns
         - N_tagged = number of frames a player hit by beam is removed from game
         - W = width screen, odd
@@ -47,7 +45,6 @@ class gathering_game():
     
     - action : a dictionary returning a onehot vector for each action among
       step forward, step back-ward, step left, step right, rotate left, rotate right, use beam and stand still.
-    - gamma : discount factor
     
     It also has methods to update the state (transition function) and to return the reward.
     
