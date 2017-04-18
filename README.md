@@ -1,7 +1,7 @@
 # ssd
 
-Class gathering tested.
+Status report:
+Tested modules/, currently testing and improving learning of the neural network.
 
-Implementation of training loop etc in notebook ssd_alpha runs - not tested.
-
-Currently rewriting the code in modules/ using class q_learner for an agent.
+Dependencies:
+python3, NumPy, PyTorch (see web page for install instructions).
