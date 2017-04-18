@@ -19,24 +19,24 @@ def dim_out(dim_in,ks,stride):
 
 class dqn(nn.Module):
         
-    def __init__(self, C_in, C_H, C_out, kernel_size, stride,
+    def __init__(self, C_in, C_H, C_out, ks, stride,
                  obs_window_H, obs_window_W):
         """hp = hyperparameters, dictionary"""
-        super(DQN, self).__init__()
+        super(dqn, self).__init__()
         # Conv2D has arguments C_in, C_out, ... where C_in is the number of input channels and C_out that of
         # output channels, not to be confused with the size of the image at input and output which is automatically
-        # computed given the input and the kernel_size. 
+        # computed given the input and the kernel_size (ks). 
         # Further, in the help, (N,C,H,W) are resp. number of samples, number of channels, height, width.
         # Note: that instead nn.Linear requires both number of input and output neurons. The reason is that
         # conv2d only has parameters in the kernel, which is independent of the number of neurons.
         # Note: we do not use any normalization layer
         self.C_H = C_H
-        self.conv1 = nn.Conv2d(C_in, self.C_H, kernel_size=kernel_size, stride=stride)
+        self.conv1 = nn.Conv2d(C_in, self.C_H, kernel_size=ks, stride=stride)
         self.H1 = dim_out(obs_window_H,ks,stride)
         self.W1 = dim_out(obs_window_W,ks,stride)
         in_size = self.C_H*self.W1*self.H1
         self.lin1 = nn.Linear(in_size, in_size) #lots of parameters!
-        self.conv2 = nn.Conv2d(self.C_H, self.C_H, kernel_size=kernel_size, stride=stride)
+        self.conv2 = nn.Conv2d(self.C_H, self.C_H, kernel_size=ks, stride=stride)
         H2 = dim_out(self.H1,ks,stride)
         W2 = dim_out(self.W1,ks,stride)
         in_size = self.C_H*W2*H2
