@@ -3,6 +3,28 @@
 """
 
 import argparse
+from q_learner_file import q_learner
+from gathering import gathering_game
+import time
+import matplotlib.pyplot as plt
+
+
+def verbose(a0, a1, r0, r1, t, game, show_screen):
+    """Print useful information about training.
+
+    """
+    print("---------------------------------------")
+    print("Time", t)
+    print("Action performed by player 0", game.get_key_action(a0))
+    print("Action performed by player 1", game.get_key_action(a1))
+    print("Reward player 0:",r0, " player 1:",r1)
+    if show_screen:
+        print("Printing current screen and directions:")
+        game.show_screen()
+        #to_show = game.s.transpose((2,1,0))
+        #plt.imshow(to_show,origin='lower')
+        plt.pause(.01)
+    # returns nothing
 
 def main(game_pars, q_learn_pars):
     """...
@@ -10,37 +32,58 @@ def main(game_pars, q_learn_pars):
     """
     print('game', game_pars)
     print('q_learn_pars', q_learn_pars)
+    show_screen = False
 
-    # init
-
+    # init game
+    game = gathering_game(game_pars)
+    # interactive mode for matplotlib on
+    if show_screen == True:
+        plt.ion()
+    
     # init agents as q_learner, using values of epsilon, loss_fn, optimizer etc
     agent0 = q_learner(q_learn_pars)
     agent1 = q_learner(q_learn_pars)
-
+    # set initial experience to None
     s0 = None
     s1 = None
     a0 = None
     a1 = None
     r0 = None
     r1 = None
-    s0p = game.get_obs_0()
-    s1p = game.get_obs_1()
+    s0p = game.obs_0()
+    s1p = game.obs_1()
+    verbose(a0, a1, r0, r1, -1, game, show_screen) #t=-1 means boundary condition
+    # init vec with reward
+    vec_r0 = []
+    vec_r1 = []
     
     # training loop over episodes
     for episode in range(game_pars['n_episodes']):
         for t in range(game_pars['tmax_episode']):
-            # perceive
-            a0 = agent0.perceive(s0, r0, a0, sp0, t)
-            a1 = agent1.perceive(s1, r1, a1, sp1, t)
+            # perceive 
+            a0 = agent0.perceive(s0, a0, r0, s0p, t)
+            a1 = agent1.perceive(s1, a1, r1, s1p, t)
             # execute action in emulator. (a_* is a 1x1 tensor)
             r0, r1 = game.transition_and_get_reward(a0[0,0], a1[0,0])
+            # print some info
+            verbose(a0[0,0], a1[0,0], r0, r1, t, game, show_screen)
+            # accumulate statistics
+            vec_r0.append(r0)
+            vec_r1.append(r1)
             # update observations
             s0 = s0p
             s1 = s1p
-            s0p = game.get_obs_0()
-            s1p = game.get_obs_1()
+            s0p = game.obs_0()
+            s1p = game.obs_1()
 
+    # plot reward
+    plt.ioff()
+    plt.close()
+    plt.plot(vec_r0,'ro')
+    plt.plot(vec_r1,'b*')
+    plt.show()
     # end of main
+    
             
 # When it is executed from command line
 if __name__ == '__main__':
@@ -120,8 +163,8 @@ if __name__ == '__main__':
     q_learn_pars['obs_window_H'] = vars(args)['size_obs_ahead'] + 1
     q_learn_pars['gamma'] = vars(args)['gamma']
     #
-    q_lear_npars['capacity'] = vars(args)['capacity'] 
-    q_lear_npars['batch_size'] =vars(args)['batch_size']
+    q_learn_pars['capacity'] = vars(args)['capacity'] 
+    q_learn_pars['batch_size'] =vars(args)['batch_size']
     #
     q_learn_pars['eps_start'] = vars(args)['eps_start']
     q_learn_pars['eps_end'] = vars(args)['eps_end']

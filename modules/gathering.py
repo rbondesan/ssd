@@ -26,7 +26,6 @@ Date  : 13 April 2017
 
 import numpy as np
 from copy import deepcopy
-import matplotlib
 import matplotlib.pyplot as plt
 
 class gathering_game():
@@ -123,7 +122,8 @@ class gathering_game():
         # 2 players, so associate a channel to a player: 
         # choose blue with 0 and red with 1. index of list is pl num.
         self.channel_pl = [2,0]
-        self.init_pos_x = [0,0] # initial x position of pl 0 and 1
+#        self.init_pos_x = [0,0] # initial x position of pl 0 and 1
+        self.init_pos_x = [self.mid_x-3,self.mid_x-3] # initial x position of pl 0 and 1
         self.init_pos_y = [int((self.pars['H']-1)/2)+2,int((self.pars['H']-1)/2)] # initial y position of pl 0 and 1
         # Last init screen
         self.s = self.get_init_screen()
@@ -149,12 +149,15 @@ class gathering_game():
     #
     # observation functions
     #
-    def pad_and_slice(self, obs_window_up, obs_window_down, obs_window_left, obs_window_right):
+    def pad_and_slice(self, obs_window_up, obs_window_down,
+                      obs_window_left, obs_window_right, s):
+        """determine how many extra black pixels have to be added at
+        top,bottom,left,right in case the observation window exceeds
+        the dimension of the screen.  Then screen acts then as a
+        "fence" and inside and outside it all the pixels are seen
+        black by the players.
+
         """
-        determine how many extra black pixels have to be added at top,bottom,left,right 
-        in case the observation window exceeds the dimension of the screen.
-        Then screen acts then as a "fence" and inside and outside it all the pixels are seen
-        black by the players."""
         pad = [0,0,0,0]
         dup = obs_window_up - self.pars['H']
         if dup > 0:
@@ -173,18 +176,18 @@ class gathering_game():
             pad[self.dir_dict['left']] = dleft
             obs_window_left = 0
 
-        print('In pad_and_slice: obs_window_up, obs_window_down, obs_window_right, obs_window_left',
-             obs_window_up,obs_window_down,obs_window_right,obs_window_left)
-        print('In pad_and_slice: pad_up, pad_down, pad_right, pad_left',
-              pad[self.dir_dict['up']],pad[self.dir_dict['down']],
-              pad[self.dir_dict['right']],pad[self.dir_dict['left']])
+        # print('In pad_and_slice: obs_window_up, obs_window_down, obs_window_right, obs_window_left',
+        #      obs_window_up,obs_window_down,obs_window_right,obs_window_left)
+        # print('In pad_and_slice: pad_up, pad_down, pad_right, pad_left',
+        #       pad[self.dir_dict['up']],pad[self.dir_dict['down']],
+        #       pad[self.dir_dict['right']],pad[self.dir_dict['left']])
 
         # slc_screen_x, slc_screen_y: slices giving the slice of the
         # screen observed in x and y direction.
         slc_screen_x = slice(obs_window_left,obs_window_right)
         slc_screen_y = slice(obs_window_down,obs_window_up)
-        print('In pad_and_slice: slc_screen_x, slc_screen_y', slc_screen_x, slc_screen_y)
-        ret = self.s[:,slc_screen_x, slc_screen_y]
+        # print('In pad_and_slice: slc_screen_x, slc_screen_y', slc_screen_x, slc_screen_y)
+        ret = s[:,slc_screen_x, slc_screen_y]
         # pad 
         # with 4 components telling how many zeros need to be padded to
         # fill the observed region outside the screen.
@@ -193,17 +196,18 @@ class gathering_game():
                          'constant', constant_values=(255))
         return ret
 
-    def get_obs(self, d, pos_x, pos_y):
-        """d = direction of player pl, pos_x and pos_y its position.
+    def get_obs(self, d, pos_x, pos_y, s):
+        """d = direction of player pl, pos_x and pos_y its position.  s =
+        screen.
         
         It should be size_obs_front ahead and size_obs_side to
         left/right, taking into account boundaries. The portion of
         screen is encoded in obs_window_* and the padding zeros in
         pad.  Flip is done so that the player has coordinates of space
-        increasing from its left to its right and ahead of him
+        increasing from its left to its right and ahead of him.
         
         Returns: 
-        ret: the observation window. 
+        ret: the observation window.
 
         """
 
@@ -215,7 +219,7 @@ class gathering_game():
             obs_window_right = pos_x + self.pars['size_obs_side']+1
             obs_window_left = pos_x - self.pars['size_obs_side']
             ret = self.pad_and_slice(obs_window_up, obs_window_down,
-                               obs_window_left, obs_window_right)
+                                     obs_window_left, obs_window_right, s)
             # no flip needed
             
         elif d == self.dir_dict['down']:
@@ -224,7 +228,7 @@ class gathering_game():
             obs_window_right = pos_x + self.pars['size_obs_side']+1
             obs_window_left = pos_x - self.pars['size_obs_side']
             ret = self.pad_and_slice(obs_window_up, obs_window_down,
-                               obs_window_left, obs_window_right)
+                                     obs_window_left, obs_window_right, s)
             # flip both directions x,y
             ret = np.flip(ret, 1)
             ret = np.flip(ret, 2)
@@ -235,7 +239,7 @@ class gathering_game():
             obs_window_right = pos_x+1
             obs_window_left = pos_x - self.pars['size_obs_ahead']
             ret = self.pad_and_slice(obs_window_up, obs_window_down,
-                               obs_window_left, obs_window_right)
+                                     obs_window_left, obs_window_right, s)
             # flip both directions x
             ret = np.flip(ret, 1)
             
@@ -245,7 +249,7 @@ class gathering_game():
             obs_window_right = pos_x + self.pars['size_obs_ahead']+1
             obs_window_left = pos_x
             ret = self.pad_and_slice(obs_window_up, obs_window_down,
-                               obs_window_left, obs_window_right)
+                                     obs_window_left, obs_window_right, s)
             # flip y
             ret = np.flip(ret, 2)
 
@@ -256,18 +260,26 @@ class gathering_game():
         return ret
     
     def get_pos_pl(self,pl,s):
-        """Get position of player pl given screen s.
+        """Get position of player pl given screen s.  Namely, pl 0 is where
+        blue, player 1 where red.
 
         """
         assert(pl==0 or pl==1)
-        s_ch_pl = s[self.channel_pl[pl],:,:]
-        ret = np.argwhere(s_ch_pl == 255)
-        if ret.size == 0: 
-            # not found, means that pl has been tagged twice and 
-            # he is placed outside of the screen, say -1,-1 
-            return np.array([-1,-1])
-        else:
-            return ret[0]
+        ch_pl = self.channel_pl[pl] # channel of player
+        other_chs = [x for x in [0,1,2] if x != ch_pl]
+        tmp = np.argwhere(s[ch_pl,:,:] == 255)
+#        print("In get_pl_pos, tmp", tmp)
+        # check other are zero since beam makes yellow line and
+        # outside window is white. Assume at most 1 pixel blue or
+        # red. [-1,-1] is value returned if tmp is empty, meaning that
+        # player has been tagged.
+        ret = [-1,-1] 
+        for [x,y] in tmp:
+            if s[other_chs[0],x,y]==0 and s[other_chs[1],x,y]==0:
+                ret = [x,y]
+                break
+#        print("In get_pl_pos, ret", ret)
+        return ret
     
     def obs_0(self):
         """Observation function of player 0. The observation window is from
@@ -275,18 +287,10 @@ class gathering_game():
 
         """
         [pos_0_x,pos_0_y] = self.get_pos_pl(0,self.s)
-        print('pos_0',pos_0_x,pos_0_y)
-        # slc_obs_x, slc_obs_y, pad = self.get_obs(self.dir[0], pos_0_x, pos_0_y)        
-        # ret = self.s[:,slc_obs_x,slc_obs_y]
-        # # pad 
-        # ret = np.lib.pad(ret, ((0,0),(pad[self.dir_dict['left']],pad[self.dir_dict['right']]),
-        #                        (pad[self.dir_dict['down']], pad[self.dir_dict['up']])), 
-        #                  'constant', constant_values=(255))
-        # print('In obs_0, ret.shape, right one', ret.shape, 
+        print('In obs_0, pos_0:',pos_0_x,pos_0_y)
+        ret = self.get_obs(self.dir[0], pos_0_x, pos_0_y, self.s)        
+        # print('In obs_0: ret.shape, right one', ret.shape, 
         #       (3, self.pars['size_obs_ahead']+1, 2*self.pars['size_obs_side']+1))
-        ret = self.get_obs(self.dir[0], pos_0_x, pos_0_y)        
-        print('In obs_0: ret.shape, right one', ret.shape, 
-              (3, self.pars['size_obs_ahead']+1, 2*self.pars['size_obs_side']+1))
         assert(ret.shape == (3, self.pars['size_obs_ahead']+1, 2*self.pars['size_obs_side']+1))
         return ret
     
@@ -299,27 +303,19 @@ class gathering_game():
         """
         # determine position of player 1: 
         [pos_1_x,pos_1_y] = self.get_pos_pl(1,self.s)        
-        print('pos_1',pos_1_x,pos_1_y)
-        # slc_obs_x, slc_obs_y, pad = self.get_obs(self.dir[1], pos_1_x, pos_1_y)        
-        # ret = s_pl_1[:,slc_obs_x,slc_obs_y]
-        # # pad: 
-        # ret = np.lib.pad(ret, ((0,0),(pad[self.dir_dict['left']],pad[self.dir_dict['right']]),
-        #                        (pad[self.dir_dict['down']], pad[self.dir_dict['up']])), 
-        #                  'constant', constant_values=(255))
-        # print('In obs_1, ret.shape, right one', ret.shape, 
+        print('In obs_1, pos_1:',pos_1_x,pos_1_y)
+        # invert red with blue: first get positions of players in ret:
+        inv_s = deepcopy(self.s)
+        [pos_0_x,pos_0_y] = self.get_pos_pl(0,self.s)
+        inv_s[self.channel_pl[1],pos_1_x, pos_1_y] = 0
+        inv_s[self.channel_pl[0],pos_1_x, pos_1_y] = 255
+        inv_s[self.channel_pl[1],pos_0_x, pos_0_y] = 255
+        inv_s[self.channel_pl[0],pos_0_x, pos_0_y] = 0
+        ret = self.get_obs(self.dir[1], pos_1_x, pos_1_y, inv_s)
+        # print('In obs_1: ret.shape, right one', ret.shape, 
         #       (3, self.pars['size_obs_ahead']+1, 2*self.pars['size_obs_side']+1))
-        ret = self.get_obs(self.dir[1], pos_1_x, pos_1_y)
-        print('In obs_1: ret.shape, right one', ret.shape, 
-              (3, self.pars['size_obs_ahead']+1, 2*self.pars['size_obs_side']+1))
         assert(ret.shape == (3, self.pars['size_obs_ahead']+1, 2*self.pars['size_obs_side']+1))
-        
-        # invert red with blue:
-        ret_inv = np.empty_like(ret)
-        ret_inv[self.channel_pl[0],:,:] = ret[self.channel_pl[1],:,:]
-        ret_inv[self.channel_pl[1],:,:] = ret[self.channel_pl[0],:,:] 
-        ret_inv[1,:,:] = ret[1,:,:] # not very elegant but ok for the moment...
-        
-        return ret_inv
+        return ret
     
     #
     # transition functions
@@ -342,11 +338,10 @@ class gathering_game():
         opp = 1 if pl == 0 else 0 
         return opp
     
-    def beam_grid(self,pl):
+    def beam_grid(self,pl,pos_pl_x,pos_pl_y):
         """Compute the grid of positions in front of player pl and check if hits opponent.
         In that case, check tagged and remove. Returns grid"""
         assert(pl==0 or pl==1)
-        [pos_pl_x,pos_pl_y] = self.get_pos_pl(pl,self.s)
         if self.dir[pl] == self.dir_dict['up']:
             grid_hit = np.mgrid[pos_pl_x:pos_pl_x+1,pos_pl_y+1:self.pars['H']].squeeze()
         elif self.dir[pl] == self.dir_dict['down']:
@@ -356,7 +351,7 @@ class gathering_game():
         elif self.dir[pl] == self.dir_dict['right']:
             grid_hit = np.mgrid[pos_pl_x+1:self.pars['W'],pos_pl_y:pos_pl_y+1].squeeze()
         gr_xs = grid_hit[0]; gr_ys = grid_hit[1]
-        print('sh gr',gr_xs.shape,gr_ys.shape)
+#        print('sh gr',gr_xs.shape,gr_ys.shape)
         # if just one point, reshape so that check below works
         if gr_xs.shape == ():
             gr_xs=gr_xs.reshape((1,1))
@@ -368,7 +363,7 @@ class gathering_game():
         # check if opponent is in there
         opp = self.opponent(pl)
         [pos_opp_x,pos_opp_y] = self.get_pos_pl(opp,self.s)
-        print('pos_pl',[pos_pl_x,pos_pl_y],'pos_opp',[pos_opp_x,pos_opp_y],'gr_xs,gr_ys', gr_xs,gr_ys)
+#        print('pos_pl',[pos_pl_x,pos_pl_y],'pos_opp',[pos_opp_x,pos_opp_y],'gr_xs,gr_ys', gr_xs,gr_ys)
         if pos_opp_x in gr_xs and pos_opp_y in gr_ys:
             print('In use_beam: opponent hit!')
             if self.is_tagged[opp]:
@@ -386,7 +381,8 @@ class gathering_game():
         TESTED ?   
         """
         if pl_b == None: # only pl_a has used the beam
-            gr_xs,gr_ys = self.beam_grid(pl_a)
+            [pos_pl_a_x,pos_pl_a_y] = self.get_pos_pl(pl_a,self.s)
+            gr_xs,gr_ys = self.beam_grid(pl_a, pos_pl_a_x, pos_pl_a_y)
             # color hit grid in yellow to show visually the action of the beam.
             # Before that save the status of the screen, since next time, it will be started from there.
             self.prev_s = deepcopy(self.s)
@@ -396,9 +392,15 @@ class gathering_game():
             self.s[0,gr_xs,gr_ys]=np.ones(sh)*255
             self.s[1,gr_xs,gr_ys]=np.ones(sh)*255
             self.s[2,gr_xs,gr_ys]=np.zeros(sh)
-        else: # both use the beam
-            gr_a_xs,gr_a_ys = self.beam_grid(pl_a)
-            gr_b_xs,gr_b_ys = self.beam_grid(pl_b)
+        else:
+            # both use the beam. get positions of pl_a and pl_b
+            # before using the beam, so that if one gets hit, the
+            # result of the action of its beam on the other is not
+            # affected.
+            [pos_pl_a_x,pos_pl_a_y] = self.get_pos_pl(pl_a,self.s)
+            [pos_pl_b_x,pos_pl_b_y] = self.get_pos_pl(pl_b,self.s)
+            gr_a_xs,gr_a_ys = self.beam_grid(pl_a,pos_pl_a_x,pos_pl_a_y)
+            gr_b_xs,gr_b_ys = self.beam_grid(pl_b,pos_pl_b_x,pos_pl_b_y)
             # color hit grid in yellow to show visually the action of the beam.
             # Before that save the status of the screen, since next time it will be started from there.
             self.prev_s = deepcopy(self.s)
@@ -432,8 +434,8 @@ class gathering_game():
             r = 1
         # move pl from cur_pos to new_pos
         ch_pl = self.channel_pl[pl]
-        print('in move_and_update_apples, pl', pl, 'pos', cur_pos_x, cur_pos_y)
-        print('s:',self.s[ch_pl,cur_pos_x,cur_pos_y])
+#        print('in move_and_update_apples, pl', pl, 'pos', cur_pos_x, cur_pos_y)
+#        print('s:',self.s[ch_pl,cur_pos_x,cur_pos_y])
         assert(self.s[ch_pl,cur_pos_x,cur_pos_y] == 255)
         self.s[ch_pl,cur_pos_x,cur_pos_y] = 0
         self.s[ch_pl,new_pos_x,new_pos_y] = 255
@@ -451,11 +453,11 @@ class gathering_game():
         # get current dir
         cur_dir = self.dir[pl]
         x,y = cur_pos[0],cur_pos[1]
-        print('in get_new_pos, pl',pl,'cur_pos',x,y)
-        print('cur_dir,a',cur_dir,a)
+#        print('in get_new_pos, pl',pl,'cur_pos',x,y)
+#        print('cur_dir,a',cur_dir,a)
         new_x = int(round(x + np.cos(np.pi*(cur_dir+a)/2.)))
         new_y = int(round(y + np.sin(np.pi*(cur_dir+a)/2.)))
-        print('new_x,new_y',new_x,x + np.cos(np.pi*(cur_dir+a)/2.),new_y,y + np.sin(np.pi*(cur_dir+a)/2.))
+#        print('new_x,new_y',new_x,x + np.cos(np.pi*(cur_dir+a)/2.),new_y,y + np.sin(np.pi*(cur_dir+a)/2.))
         # in case point out of box, just do nothing, reassign old position
         if new_x > self.pars['W']-1 or new_x < 0 or new_y > self.pars['H']-1 or new_y < 0:
             print('out of box')
@@ -550,6 +552,7 @@ class gathering_game():
     def update_tagged(self):
         """check if some player is still tagged and in case its t_tagged > N_tagged, put it back into game
         at init position."""
+        print('In update_tagged: t_tagged',self.t_tagged)
         for pl in range(len(self.t_tagged)):
             if self.t_tagged[pl] > self.pars['N_tagged']:
                 # put player pl back if position not yet occupied and init t_tagged, is_tagged
@@ -648,14 +651,27 @@ class gathering_game():
     #
     # Output functions:
     #
-    def show_screen(self):
+    def show_screen(self, show=False):
+        """Shows current state s using matplotlib
+
+        """
         to_show = self.s.transpose((2,1,0))
         plt.imshow(to_show,origin='lower')
-        plt.show()
+        if show:
+            plt.show()
         for k,v in self.dir_dict.items():
             if self.dir[0] == v:
                 print('Direction 0:',k)
             if self.dir[1] == v:
                 print('Direction 1:',k)
-        
+
+    def get_key_action(self, a):
+        """Returns the key associated to action a (a number between 0 and 7)
+
+        """
+        for k,v in self.actions_dict.items():
+            if a == v:
+                return k
+        return None # If not found
+
     # str? 
