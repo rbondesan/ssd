@@ -5,7 +5,7 @@
 # Parameters:
 
 # game
-n_apples=2
+n_apples=5
 n_tagged=5
 width=33 # Width of screen, always odd
 height=11 # Height, always odd
@@ -20,7 +20,7 @@ kernel_size=5
 stride=2
 gamma=.99 # gamma = discount of reward
 n_episodes=1
-tmax_episode=2
+tmax_episode=1000
 
 # for replay_memory
 capacity=2

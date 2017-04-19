@@ -64,7 +64,7 @@ class q_learner():
 
     """
 
-    def __init__(self, gpars, pars):
+    def __init__(self, pars):
         # assign parameters
         self.C_in = pars['C_in']
         self.C_H = pars['C_H'] 
@@ -79,7 +79,6 @@ class q_learner():
         self.eps_start = pars['eps_start']
         self.eps_end = pars['eps_end']
         self.decay_rate = pars['decay_rate']
-        self.n_actions = gpars['n_actions']
         # memory, model (nn approximator for Q), loss_fn, optimizer
         self.rpl_memory = replay_memory(self.capacity)
         self.model = dqn(self.C_in, self.C_H, self.C_out, self.kernel_size,
@@ -102,12 +101,11 @@ class q_learner():
     def eps_greedy(self, obs, eps):
         """epsilon-greedy policy. Input:
         obs : an observation, already preprocessed tensor below promoted to autograd.Variable 
-        n_action : the number of possible actions (gathering, = 8)
         t : time.
         Returns an action."""
         assert(0 <= eps <= 1)
         random_num = random.random()
-        print('rand',random_num, 'eps',eps)
+#        print('rand',random_num, 'eps',eps)
         if random_num > eps:
             # to be adjusted eventually.  volatile: Boolean indicating
             # that the Variable should be used in inference mode
@@ -123,7 +121,8 @@ class q_learner():
             return y_pred.data.max(1)[1].cpu()
         else:
             print('In rand policy')
-            return torch.LongTensor([[random.randrange(self.n_actions)]])
+            # Note: number of actions = C_out
+            return torch.LongTensor([[random.randrange(self.C_out)]])
 
     #
     # preprocess 
@@ -148,6 +147,7 @@ class q_learner():
         from self.memory.
 
         """
+        print("In q_learner.optimize")
         # if the memory is smaller than wanted, don't do anything and
         # keep building memory
         if len(self.rpl_memory) < self.batch_size:
@@ -160,7 +160,6 @@ class q_learner():
         # http://stackoverflow.com/a/19343/3343043 for detailed
         # explanation).  This is a namedtuple of lists
         minibatch = experience(*zip(*sample_experience))
-        print('minibatch.reward:',minibatch.reward)
 
         # get obs,action,next_obs,reward batches in Variable
         # TODO: Remove next 3 lines
@@ -175,7 +174,7 @@ class q_learner():
     
         # Compute cur_Q = Q(obs, action) - the model computes Q(obs),
         # then we select the columns of actions taken
-        print("In optimize: obs_batch.data.size()", obs_batch.data.size())
+#        print("In optimize: obs_batch.data.size()", obs_batch.data.size())
         cur_Q = self.model(obs_batch).gather(1, action_batch)
     
         # Compute V(obs')=max_a Q(obs', a) for all next states.
@@ -191,7 +190,7 @@ class q_learner():
         # prediction and only the weights contained in cur_Q are
         # optimized to minimize loss.  Here wrt to DQN paper algorithm
         # we take C=1
-        print('cur_Q.requires_grad,y.requires_grad',cur_Q.requires_grad,y.requires_grad)
+#        print('cur_Q.requires_grad,y.requires_grad',cur_Q.requires_grad,y.requires_grad)
         
         # Compute loss
         loss = self.loss_fn(cur_Q, y)
